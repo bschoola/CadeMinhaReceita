@@ -1,0 +1,14 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\CadeMinhaReceita.Anticorruption\CadeMinhaReceita.Anticorruption.csproj" />
+    <ProjectReference Include="..\CadeMinhaReceita.Domain\CadeMinhaReceita.Domain.csproj" />
+  </ItemGroup>
+
+</Project>
