@@ -1,5 +1,5 @@
-using CadeMinhaReceita.Components;
 using CadeMinhaReceita.Common;
+using CadeMinhaReceita.Web.Components;
 
 namespace CadeMinhaReceita
 {

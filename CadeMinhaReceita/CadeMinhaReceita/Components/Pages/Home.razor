@@ -1,7 +1,30 @@
 ﻿@page "/"
+@using CadeMinhaReceita.Domain.Contracts.Domain
+@using CadeMinhaReceita.Domain.Services
+
+@inject IChatGptService chatGptService;
 
 <PageTitle>Home</PageTitle>
 
 <h1>Hello, world!</h1>
 
 Welcome to your new app.
+
+<hr />
+
+<button class="btn btn-primary" @onclick="SendButtonClick">Click me</button>
+<label>@ReceivedInfo</label>
+
+
+@code {
+    [Parameter]
+    public string ReceivedInfo { get; set; }
+
+    private async Task SendButtonClick()
+    {
+        // Implement the action to be performed when the button is clicked
+        Console.WriteLine("Button clicked! Performing action...");
+
+        ReceivedInfo = await chatGptService.TalkWith("testando..");
+    }
+}
