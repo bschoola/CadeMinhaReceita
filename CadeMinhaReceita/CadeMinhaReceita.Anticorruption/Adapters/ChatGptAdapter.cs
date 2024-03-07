@@ -1,7 +1,8 @@
 ﻿using CadeMinhaReceita.Domain.Contracts.Anticorruption;
-using Flurl.Http;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using System.Text;
+using System.Text.Json;
 
 namespace CadeMinhaReceita.Anticorruption.Adapters
 {
@@ -9,55 +10,98 @@ namespace CadeMinhaReceita.Anticorruption.Adapters
     {
         private const string AppSettingsKey = "Endpoints:ChatGPT35";
         private const string ChatGptVariableName = "OpenAI_Key";
+        private const string GptV4 = "gpt-4-turbo-preview";
+        private const string GptV35 = "gpt-3.5-turbo";
         private readonly ILogger<ChatGptAdapter> _logger;
-        private readonly string _endpointUrl;
+        private readonly string _apiUrl;
         private readonly string _chatGptKey;
 
         public ChatGptAdapter(IConfiguration configuration, ILogger<ChatGptAdapter> logger)
         {
-            _endpointUrl = configuration.GetSection(AppSettingsKey)?.Value;
+            _apiUrl = configuration.GetSection(AppSettingsKey)?.Value;
             _chatGptKey = Environment.GetEnvironmentVariable(ChatGptVariableName);
             _logger = logger;
         }
 
-        public async Task<string> TalkWith(string message)
+        public async Task<string> TalkWith(string message, string context)
         {
-            if (string.IsNullOrWhiteSpace(_chatGptKey)) {
-                throw new InvalidOperationException("Key is required.");
-            }
+            string couldNotLoadDescription = "ChatGPT description could not be loaded";
+            var Model = GptV4;
+            var Temperature = 0.3;
 
-            if (string.IsNullOrWhiteSpace(_endpointUrl))
+            var messages = CreateMessageRequest(message, context);
+
+            var data = new
             {
-                throw new InvalidOperationException("URL is required.");
-            }
+                model = Model,
+                messages,
+                temperature = Temperature
+            };
+
+            var HttpClient = new HttpClient();
+
+            HttpClient.DefaultRequestHeaders.Add("Authorization", $"Bearer {_chatGptKey}");
+
+            var json = JsonSerializer.Serialize(data);
+
+            var requestContent = new StringContent(json, Encoding.UTF8, "application/json");
 
             try
             {
-                var objRequest = new
+                var response = await HttpClient.PostAsync(_apiUrl, requestContent);
+
+                if (response.IsSuccessStatusCode)
                 {
-                    model = "gpt-3.5-turbo",
-                    messages = new[]
+                    var responseContent = await response.Content.ReadAsStringAsync();
+
+                    using var doc = JsonDocument.Parse(responseContent);
+                    var choicesElement = doc.RootElement.GetProperty("choices");
+                    var messageObject = choicesElement[0].GetProperty("message");
+                    var content = messageObject.GetProperty("content").GetString();
+
+                    if (content is not null)
                     {
-                        new { role  = "system", content = "You are a professional cook." },
-                        new { role  = "user", content = message }
+                        return content;
                     }
-                };
-
-                //var jsonIn = JsonConvert.SerializeObject(objRequest);
-
-                string requestUrl = $"{_endpointUrl}?message={Uri.EscapeDataString(message)}";
-
-                var response = await requestUrl.WithOAuthBearerToken(_chatGptKey).PostJsonAsync(objRequest);
-
-                var responseBody = await response.ResponseMessage.Content.ReadAsStringAsync();
-
-                return responseBody;
+                    else
+                    {
+                        _logger.LogError("ChatGPT API response did not contain expected content");
+                        return couldNotLoadDescription;
+                    }
+                }
+                else
+                {
+                    _logger.LogError("ChatGPT API request failed with status code: {StatusCode}", response.StatusCode);
+                    return couldNotLoadDescription;
+                }
             }
-            catch (HttpRequestException ex)
+            catch (Exception ex)
             {
-                _logger.LogError($"Erro ao fazer solicitação HTTP: {ex.Message}", ex);
-                throw;
+                _logger.LogError(ex, "ChatGPT error occurred: {Message}", ex.Message);
+                return couldNotLoadDescription;
             }
         }
+
+        private object CreateMessageRequest(string message, string context)
+        {
+            if (string.IsNullOrEmpty(context))
+            {
+                var messagesWithoutContext = new[]
+                {
+                    new { role = "user", content = $"{message}" }
+                };
+
+                return messagesWithoutContext;
+            }
+
+            var messagesWithContext = new[]
+            {
+                new { role = "system", content = $"{context}" },
+                new { role = "user", content = $"{message}" }
+            };
+
+            return messagesWithContext;
+        }
+
     }
 }

@@ -2,6 +2,6 @@
 {
     public interface IChatGptAdapter
     {
-        Task<string> TalkWith(string message);
+        Task<string> TalkWith(string message, string context);
     }
 }

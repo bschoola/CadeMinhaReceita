@@ -1,0 +1,6 @@
+@CadeMinhaReceita.Api_HostAddress = http://localhost:5013
+
+GET {{CadeMinhaReceita.Api_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
